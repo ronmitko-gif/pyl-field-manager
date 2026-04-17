@@ -1,4 +1,4 @@
-import ical from 'node-ical';
+import ical, { type VEvent } from 'node-ical';
 import type { NormalizedEvent } from '@/lib/types';
 
 function splitDescription(description: string) {
@@ -23,18 +23,19 @@ export function parseIcal(icsText: string): NormalizedEvent[] {
   const events: NormalizedEvent[] = [];
   for (const key of Object.keys(parsed)) {
     const entry = parsed[key];
-    if (entry.type !== 'VEVENT') continue;
-    const uid = typeof entry.uid === 'string' ? entry.uid : null;
-    if (!uid || !entry.start || !entry.end) continue;
-    const summary = typeof entry.summary === 'string' ? entry.summary : '';
+    if (!entry || entry.type !== 'VEVENT') continue;
+    const vevent = entry as VEvent;
+    const uid = typeof vevent.uid === 'string' ? vevent.uid : null;
+    if (!uid || !vevent.start || !vevent.end) continue;
+    const summary = typeof vevent.summary === 'string' ? vevent.summary : '';
     const description =
-      typeof entry.description === 'string' ? entry.description : '';
+      typeof vevent.description === 'string' ? vevent.description : '';
     const { park, field_name } = splitDescription(description);
     const { away_team_raw, home_team_raw } = splitSummary(summary);
     events.push({
       uid,
-      start_at: new Date(entry.start),
-      end_at: new Date(entry.end),
+      start_at: new Date(vevent.start),
+      end_at: new Date(vevent.end),
       summary,
       description,
       park,

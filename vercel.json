@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/sync/sports-connect", "schedule": "15 * * * *" }
+  ]
+}
