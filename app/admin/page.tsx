@@ -8,7 +8,9 @@ async function triggerSync() {
   'use server';
   const secret = process.env.CRON_SECRET;
   if (!secret) throw new Error('CRON_SECRET not set');
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
   await fetch(`${base}/api/sync/sports-connect`, {
     method: 'POST',
     headers: { authorization: `Bearer ${secret}` },
