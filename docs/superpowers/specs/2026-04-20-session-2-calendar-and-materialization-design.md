@@ -178,9 +178,31 @@ Exact hex values come from the `poweryourleague-brand` skill's tokens (loaded du
 
 ---
 
-## Brand styling
+## Brand styling — TJYBB (Thomas Jefferson Youth Baseball) palette
 
-Before writing any UI in Unit 2 / Unit 3, the implementation will invoke the `poweryourleague-brand` skill to load brand tokens: colors, typography, spacing, component patterns. Every new component uses those tokens (no ad-hoc Tailwind grays). The existing Session 1 admin page gets a light restyle pass so the whole `/admin` surface feels consistent.
+Since this deployment serves TJYBB users specifically, we use their school colors (black + gold) instead of the generic PYL brand skin. When the Field Manager module lifts into the PYL multi-tenant platform, tokens will become per-tenant configurable — so using TJ's palette here is actually forward-compatible.
+
+**Palette (defined as CSS vars in `app/globals.css`):**
+
+| Token | Value | Use |
+|---|---|---|
+| `--tj-black` | `#0a0a0a` | Primary text, headers, admin buttons |
+| `--tj-gold` | `#c5a34a` | Primary accent (travel team color, sync-button fills, active states) |
+| `--tj-gold-soft` | `#e6d08a` | Gold backgrounds, hover states |
+| `--tj-cream` | `#fbf7ee` | Page background, card fills |
+| `--rec-blue` | `#3b6ea8` | `sports_connect` block color |
+| `--override-red` | `#b84545` | `override` block color |
+| `--manual-slate` | `#4a5568` | `manual` block color |
+| `--open-gray` | `#9ca3af` | `open_slot` border color (dashed) |
+
+**Typography:** Use Tailwind/Next defaults (Geist Sans + Geist Mono) — no custom fonts in Session 2.
+
+**Application points:**
+
+- `app/globals.css` gets a `@theme` block (Tailwind v4 idiom) with these tokens
+- Block colors in Unit 2 map to the tokens above
+- Admin header, buttons, and list components use `--tj-black` and `--tj-gold`
+- Session 1's admin page gets a light restyle pass so the whole surface is consistent.
 
 ---
 
