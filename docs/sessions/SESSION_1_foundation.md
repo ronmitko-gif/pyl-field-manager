@@ -178,6 +178,7 @@ Not set: `NEXT_PUBLIC_SITE_URL` — intentional; prod falls back to `VERCEL_URL`
 ### What's pending / deferred
 
 - ~~**Prod login smoke test**~~ — verified end-to-end on `https://fields.poweryourleague.com` after updating Supabase Site URL to the prod domain (was defaulting to `http://localhost:3000` which broke the magic-link redirect fallback).
+- ~~**Custom SMTP**~~ — wired via Resend (SMTP host `smtp.resend.com`, sender `noreply@poweryourleague.com`). Resend free tier (100/day, 3k/month) covers the 30–80/month projected volume. API key stored in Supabase SMTP settings only, not in app env.
 - **Hourly Sports Connect sync** — cron removed because Vercel Hobby caps crons at daily. Manual "Sync now" button works. See BACKLOG.
 - **Custom SMTP for Supabase magic links** — high priority before first real coach onboards. See BACKLOG.
 - **`middleware.ts` → `proxy.ts`** — Next 16 deprecation, non-blocking. See BACKLOG.
