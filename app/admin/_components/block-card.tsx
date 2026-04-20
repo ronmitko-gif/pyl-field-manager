@@ -48,10 +48,10 @@ export function BlockCard({
     <Link
       href={`?week=${weekParam}&block=${block.id}`}
       scroll={false}
-      className={`absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs leading-tight shadow-sm hover:brightness-110 ${bg} ${status}`}
+      className={`absolute left-0.5 right-0.5 overflow-hidden rounded px-1.5 py-1 text-xs leading-tight shadow-sm hover:brightness-110 ${bg} ${status}`}
       style={{ top: topPx, height: heightPx }}
     >
-      <div className="truncate font-medium">{label}</div>
+      <div className="font-medium break-words">{label}</div>
       <div className="truncate opacity-80">{start} – {end}</div>
     </Link>
   );
