@@ -39,8 +39,31 @@ export type ScheduleBlock = {
   home_team_raw: string | null;
   away_team_raw: string | null;
   status: BlockStatus;
+  notes: string | null;
   raw_summary: string | null;
   raw_description: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type TravelRecurringSlot = {
+  id: string;
+  team_id: string;
+  field_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  effective_from: string;
+  effective_to: string | null;
+};
+
+export type MaterializedBlock = {
+  org_id: string;
+  team_id: string;
+  field_id: string;
+  start_at: Date;
+  end_at: Date;
+  source_uid: string;
 };
 
 export type NormalizedEvent = {
