@@ -18,14 +18,18 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <header className="flex items-center justify-between border-b bg-white px-6 py-3">
-        <h1 className="text-lg font-semibold">PYL Field Manager — TJYBB</h1>
+    <div className="min-h-screen bg-tj-cream text-tj-black">
+      <header className="flex items-center justify-between border-b border-tj-black/10 bg-tj-black px-6 py-3 text-tj-cream">
+        <h1 className="text-lg font-semibold">
+          <span className="text-tj-gold">PYL</span> Field Manager — TJYBB
+        </h1>
         <form action={signOut}>
-          <button className="text-sm underline">Sign out</button>
+          <button className="text-sm text-tj-gold-soft hover:text-tj-gold underline underline-offset-4">
+            Sign out
+          </button>
         </form>
       </header>
-      <main className="mx-auto max-w-5xl p-6">{children}</main>
+      <main className="mx-auto max-w-6xl p-6">{children}</main>
     </div>
   );
 }
