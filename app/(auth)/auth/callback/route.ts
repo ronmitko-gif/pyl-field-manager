@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/login?error=no_user', url.origin));
   }
 
-  const { data: coach } = await supabase
+  // Use the admin client for the coach lookup + first-login link-up.
+  // RLS policy "coaches see self" (auth_user_id = auth.uid()) blocks the user's
+  // own row before auth_user_id is populated, which would incorrectly report
+  // the user as not registered. This step is an admin-style operation.
+  const admin = createAdminClient();
+  const { data: coach } = await admin
     .from('coaches')
     .select('id, role, auth_user_id')
     .eq('email', user.email.toLowerCase())
@@ -38,7 +44,7 @@ export async function GET(request: Request) {
   }
 
   if (!coach.auth_user_id) {
-    await supabase
+    await admin
       .from('coaches')
       .update({ auth_user_id: user.id })
       .eq('id', coach.id);
