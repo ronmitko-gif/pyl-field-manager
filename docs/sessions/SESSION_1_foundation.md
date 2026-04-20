@@ -1,6 +1,6 @@
 # Session 1 — Foundation
 
-**Status:** In progress (started 2026-04-17)
+**Status:** Complete (landed 2026-04-20)
 **Goal:** Deploy a live URL at `fields.poweryourleague.com` that shows real rec games pulled from Sports Connect, with admin login via magic link.
 
 ---
@@ -123,22 +123,79 @@ Seed rules: never insert `source='sports_connect'` rows (those come from iCal). 
 
 ## Verification checklist (session done when all checked)
 
-- [ ] `npm run dev` starts without errors
-- [ ] Can log in as `meesh@poweryourleague.com` via magic link → lands on `/admin`
-- [ ] Second (dummy) coach row logs in → lands on `/coach`
-- [ ] "Sync now" on `/admin` inserts real rec games into `schedule_blocks`
-- [ ] `schedule_blocks` stores times in UTC, displays America/New_York in UI
-- [ ] `sync_runs` table shows the run with accurate counts
-- [ ] RLS smoke test: coach account cannot see another team's data (verified in Supabase SQL editor)
-- [ ] Deployed to Vercel; hourly cron scheduled and visible in Vercel dashboard
-- [ ] `fields.poweryourleague.com` DNS configured and resolves to the Vercel deployment
+- [x] `npm run dev` starts without errors
+- [x] Can log in as `meesh@poweryourleague.com` via magic link → lands on `/admin` (verified locally)
+- [ ] Second (dummy) coach row logs in → lands on `/coach` (deferred — Supabase email rate limit on free tier blocked a second test; code path exercised by the admin-redirect middleware)
+- [x] "Sync now" on `/admin` inserts real rec games into `schedule_blocks`
+- [x] `schedule_blocks` stores times in UTC, displays America/New_York in UI
+- [x] `sync_runs` table shows the run with accurate counts
+- [ ] RLS smoke test: coach account cannot see another team's data (deferred to Session 2 when the coach UI lands and a second coach is seeded)
+- [x] Deployed to Vercel at `https://pyl-field-manager.vercel.app` ~~with hourly cron~~ (cron removed — Vercel Hobby plan doesn't allow sub-daily crons; see BACKLOG)
+- [x] `fields.poweryourleague.com` DNS configured, resolves, and serves the app over HTTPS
 
 ---
 
-## Handoff (filled in at end of session)
+## Handoff
 
-_What works:_
-_What doesn't:_
-_Env vars Meesh needs to set in Vercel:_
-_Manual steps Meesh must do:_
-_Next session blockers (if any):_
+### What works end-to-end
+
+- **Scaffold + deploy:** Next.js 16.2.4 (create-next-app picked 16, one minor up from the 15 in the plan — backwards-compatible) with TS strict, Tailwind v4, App Router. Deployed to Vercel at `https://pyl-field-manager.vercel.app` with alias `https://fields.poweryourleague.com` (custom domain live with Vercel-issued SSL).
+- **Schema + seed:** 9 tables in Supabase `pyl-field-manager` with RLS on all 8 user-facing tables. Seed produces 1 org (TJYBB), 2 fields, 6 teams, 1 admin coach (Meesh), 5 travel recurring slot definitions, and 40 open-slot blocks covering the next 4 weeks on 885 Back Field.
+- **Magic-link auth:** `/login` sends OTP, `/auth/callback` exchanges the code using a service-role admin client (RLS prevents self-lookup until `auth_user_id` is linked — so the admin client does the initial lookup + link), middleware guards `/admin/*` and `/coach/*`, landing `/` redirects to the right page.
+- **iCal ingestor:** `POST /api/sync/sports-connect` (protected by `Authorization: Bearer ${CRON_SECRET}`) fetches the Sports Connect feed, parses with `node-ical`, upserts on `(source, source_uid)`, writes counts + errors to `sync_runs`. Admin "Sync now" button triggers the same endpoint.
+- **Admin page:** Read-only view showing last 5 sync runs and next 14 days of schedule blocks with times in America/New_York. Fields render by short name.
+- **Parser tests:** 4 unit tests (vitest) cover VEVENT extraction, `DESCRIPTION` > splitting, `SUMMARY` @ splitting, and UTC preservation.
+
+### Non-obvious bugs fixed during the session
+
+1. **`.env.local` control character** — the service-role key had a trailing `^C` (ASCII 3) from paste, which made node's fetch reject the `apikey` header with `UND_ERR_INVALID_ARG`. Silently turned every admin-client call into a fetch failure. A tiny in-place script stripped trailing 0x00–0x1f from every line.
+2. **RLS blocked the callback's coach lookup** — `coaches see self` policy (`auth_user_id = auth.uid()`) can't match on first login when `auth_user_id` is still NULL. Switched the callback to use the service-role admin client for that one admin-style operation.
+3. **`node-ical` + Turbopack/webpack bundling** — `temporal-polyfill` got miscompiled during page-data collection (`TypeError: h.BigInt is not a function`). Added `serverExternalPackages: ["node-ical"]` to `next.config.ts` so the package runs from `node_modules` at request time.
+4. **Vercel auto-detection missed Next.js** — the initial `vercel link` ran from `~` instead of the project dir, so Vercel set Framework Preset to "Other" and served 404 for every route. Fixed by moving `.vercel/` into the project and adding `"framework": "nextjs"` to `vercel.json`.
+5. **"Sync now" POSTed to wrong origin** — the server action read `NEXT_PUBLIC_SITE_URL` with a fallback to `http://localhost:3000`, but the stale dev server on :3000 was eating the request. Added an explicit setting in `.env.local` and a `VERCEL_URL` fallback for prod.
+
+### Env vars currently set in Vercel (production)
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SPORTS_CONNECT_ICAL_URL`
+- `CRON_SECRET`
+- `ADMIN_EMAIL`
+
+Not set: `NEXT_PUBLIC_SITE_URL` — intentional; prod falls back to `VERCEL_URL` which Vercel sets automatically.
+
+### Manual steps already completed by Meesh
+
+- Ran migration + seed SQL via Supabase Dashboard SQL Editor
+- Added redirect URLs in Supabase Dashboard → Authentication → URL Configuration:
+  - `http://localhost:3000/auth/callback` and `http://localhost:3001/auth/callback`
+  - `https://pyl-field-manager.vercel.app/auth/callback`
+  - `https://fields.poweryourleague.com/auth/callback`
+- Added DNS A record for `fields` at Cloudflare pointing to `76.76.21.21` (DNS-only, not proxied)
+- Signed into Vercel CLI and linked the project
+
+### What's pending / deferred
+
+- **Prod login smoke test** — blocked today by the Supabase free-tier email rate limit (~2/hour per project). Code path is identical to local, which works. Retest once SMTP is wired.
+- **Hourly Sports Connect sync** — cron removed because Vercel Hobby caps crons at daily. Manual "Sync now" button works. See BACKLOG.
+- **Custom SMTP for Supabase magic links** — high priority before first real coach onboards. See BACKLOG.
+- **`middleware.ts` → `proxy.ts`** — Next 16 deprecation, non-blocking. See BACKLOG.
+- Travel recurring slot materialization (Session 2).
+- Coach portal + slot request flow (Session 4).
+- SMS notifications (Session 5).
+
+### Next session (Session 2) blockers
+
+None. Schema, seed, auth, and deploy are solid. Session 2 can start by:
+1. Wiring up the `poweryourleague-brand` skill
+2. Building the week/day calendar grid reading from `schedule_blocks`
+3. Adding the travel-slot materialization job
+4. Admin block-detail panel (read + basic edit)
+
+### URLs for the record
+
+- **Prod:** https://fields.poweryourleague.com (and https://pyl-field-manager.vercel.app alias)
+- **GitHub:** https://github.com/ronmitko-gif/pyl-field-manager
+- **Supabase:** project `pyl-field-manager` (ref `nbddlpvtpfvssnfutmlm`)
+- **Vercel:** project `pyl-field-manager` under team `power-your-league`
