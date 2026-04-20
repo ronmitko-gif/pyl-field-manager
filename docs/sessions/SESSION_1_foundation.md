@@ -124,7 +124,7 @@ Seed rules: never insert `source='sports_connect'` rows (those come from iCal). 
 ## Verification checklist (session done when all checked)
 
 - [x] `npm run dev` starts without errors
-- [x] Can log in as `meesh@poweryourleague.com` via magic link → lands on `/admin` (verified locally)
+- [x] Can log in as `meesh@poweryourleague.com` via magic link → lands on `/admin` (verified locally AND on `https://fields.poweryourleague.com`)
 - [ ] Second (dummy) coach row logs in → lands on `/coach` (deferred — Supabase email rate limit on free tier blocked a second test; code path exercised by the admin-redirect middleware)
 - [x] "Sync now" on `/admin` inserts real rec games into `schedule_blocks`
 - [x] `schedule_blocks` stores times in UTC, displays America/New_York in UI
@@ -177,7 +177,7 @@ Not set: `NEXT_PUBLIC_SITE_URL` — intentional; prod falls back to `VERCEL_URL`
 
 ### What's pending / deferred
 
-- **Prod login smoke test** — blocked today by the Supabase free-tier email rate limit (~2/hour per project). Code path is identical to local, which works. Retest once SMTP is wired.
+- ~~**Prod login smoke test**~~ — verified end-to-end on `https://fields.poweryourleague.com` after updating Supabase Site URL to the prod domain (was defaulting to `http://localhost:3000` which broke the magic-link redirect fallback).
 - **Hourly Sports Connect sync** — cron removed because Vercel Hobby caps crons at daily. Manual "Sync now" button works. See BACKLOG.
 - **Custom SMTP for Supabase magic links** — high priority before first real coach onboards. See BACKLOG.
 - **`middleware.ts` → `proxy.ts`** — Next 16 deprecation, non-blocking. See BACKLOG.
