@@ -7,6 +7,7 @@ type IngestCounts = {
   inserted: number;
   updated: number;
   unchanged: number;
+  deleted: number;
   errors: { uid: string; message: string }[];
 };
 
@@ -20,6 +21,7 @@ export async function ingestEvents(
     inserted: 0,
     updated: 0,
     unchanged: 0,
+    deleted: 0,
     errors: [],
   };
 
@@ -103,6 +105,40 @@ export async function ingestEvents(
       counts.errors.push({ uid: ev.uid, message: `Update failed: ${updErr.message}` });
     } else {
       counts.updated += 1;
+    }
+  }
+
+  // Remove any future sports_connect blocks whose UID isn't in the current feed.
+  // Sports Connect rotates UIDs when events are edited or cancelled, so anything
+  // not in the latest feed is either genuinely cancelled or a stale duplicate
+  // from a prior edit.
+  const feedUids = new Set(events.map((e) => e.uid));
+  const cutoff = new Date();
+  cutoff.setUTCHours(0, 0, 0, 0);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 1); // 1-day safety window
+
+  const { data: existingSports, error: exErr } = await supabase
+    .from('schedule_blocks')
+    .select('id, source_uid')
+    .eq('source', 'sports_connect')
+    .eq('org_id', orgId)
+    .gte('start_at', cutoff.toISOString());
+  if (exErr) {
+    counts.errors.push({ uid: '(stale-scan)', message: exErr.message });
+  } else {
+    const staleIds = (existingSports ?? [])
+      .filter((r) => !feedUids.has(r.source_uid as string))
+      .map((r) => r.id);
+    if (staleIds.length > 0) {
+      const { error: delErr } = await supabase
+        .from('schedule_blocks')
+        .delete()
+        .in('id', staleIds);
+      if (delErr) {
+        counts.errors.push({ uid: '(bulk-delete)', message: delErr.message });
+      } else {
+        counts.deleted = staleIds.length;
+      }
     }
   }
 
