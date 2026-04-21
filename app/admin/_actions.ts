@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import {
   notifyRequestApproved,
   notifyRequestDenied,
+  notifyTravelOverridden,
 } from '@/lib/notifications/enqueue';
 
 const EDITABLE_STATUSES = new Set(['confirmed', 'cancelled', 'tentative']);
@@ -323,6 +324,95 @@ export async function denySlotRequest(formData: FormData) {
   }
 
   revalidatePath('/admin/requests');
+  revalidatePath('/admin');
+  revalidatePath('/coach');
+}
+
+export async function overrideTravelBlock(formData: FormData) {
+  const { adminClient } = await requireAdmin();
+  const blockId = String(formData.get('block_id') ?? '');
+  const awayTeam = String(formData.get('away_team_raw') ?? '').trim();
+  const homeTeam = String(formData.get('home_team_raw') ?? '').trim();
+  const reason = String(formData.get('reason') ?? '').trim() || null;
+  if (!blockId) throw new Error('Missing block id');
+  if (!awayTeam || !homeTeam) throw new Error('Both away and home teams are required');
+
+  const { data: original } = await adminClient
+    .from('schedule_blocks')
+    .select('id, org_id, field_id, start_at, end_at, team_id, source, status')
+    .eq('id', blockId)
+    .maybeSingle();
+  if (!original) throw new Error('Block not found');
+  if (!['travel_recurring', 'manual'].includes(original.source)) {
+    throw new Error('Only travel or manual blocks can be overridden');
+  }
+  if (original.status !== 'confirmed') {
+    throw new Error('Only confirmed blocks can be overridden');
+  }
+
+  const { data: replacement, error: insErr } = await adminClient
+    .from('schedule_blocks')
+    .insert({
+      org_id: original.org_id,
+      field_id: original.field_id,
+      team_id: null,
+      source: 'override',
+      status: 'confirmed',
+      start_at: original.start_at,
+      end_at: original.end_at,
+      home_team_raw: homeTeam,
+      away_team_raw: awayTeam,
+      notes: reason,
+    })
+    .select('id')
+    .single();
+  if (insErr || !replacement) throw new Error(`Replacement insert failed: ${insErr?.message ?? 'unknown'}`);
+
+  const { error: updErr } = await adminClient
+    .from('schedule_blocks')
+    .update({
+      status: 'overridden',
+      overridden_by_block_id: replacement.id,
+      override_reason: reason,
+    })
+    .eq('id', original.id);
+  if (updErr) throw new Error(`Update failed: ${updErr.message}`);
+
+  if (original.team_id) {
+    const { data: coaches } = await adminClient
+      .from('coaches')
+      .select('id, name, email, phone, team_id')
+      .eq('team_id', original.team_id);
+    const { data: field } = await adminClient
+      .from('fields')
+      .select('name')
+      .eq('id', original.field_id)
+      .maybeSingle();
+
+    if (coaches && coaches.length > 0 && field) {
+      await notifyTravelOverridden(
+        adminClient,
+        original.org_id,
+        {
+          id: original.id,
+          start_at: original.start_at,
+          end_at: original.end_at,
+          field_id: original.field_id,
+        },
+        replacement.id,
+        reason,
+        coaches.map((c) => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          team_id: c.team_id,
+        })),
+        field.name
+      );
+    }
+  }
+
   revalidatePath('/admin');
   revalidatePath('/coach');
 }

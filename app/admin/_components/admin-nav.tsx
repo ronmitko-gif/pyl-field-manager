@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/admin/coaches', label: 'Coaches' },
   { href: '/admin/fields', label: 'Fields' },
   { href: '/admin/requests', label: 'Requests' },
+  { href: '/admin/notifications', label: 'Notifications' },
 ];
 
 export function AdminNav({ pendingRequests = 0 }: { pendingRequests?: number }) {

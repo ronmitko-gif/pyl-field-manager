@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { formatInTimeZone } from 'date-fns-tz';
 import { createClient } from '@/lib/supabase/server';
 import { updateBlock } from '../_actions';
+import { OverrideForm } from './override-form';
 
 const TZ = 'America/New_York';
 
@@ -24,9 +25,22 @@ export async function BlockDrawer({ blockId, weekParam }: { blockId: string; wee
     : { data: null };
   const { data: field } = await supabase.from('fields').select('name').eq('id', block.field_id).maybeSingle();
 
+  const { data: replacement } = block.overridden_by_block_id
+    ? await supabase
+        .from('schedule_blocks')
+        .select('id, home_team_raw, away_team_raw, notes')
+        .eq('id', block.overridden_by_block_id)
+        .maybeSingle()
+    : { data: null };
+
   const start = new Date(block.start_at);
   const end = new Date(block.end_at);
   const editable = ['confirmed', 'cancelled', 'tentative'].includes(block.status);
+  const isOverridden = block.status === 'overridden';
+  const canOverride =
+    ['travel_recurring', 'manual'].includes(block.source) &&
+    block.status === 'confirmed' &&
+    start > new Date();
 
   return (
     <>
@@ -57,6 +71,23 @@ export async function BlockDrawer({ blockId, weekParam }: { blockId: string; wee
               <div>{block.away_team_raw} @ {block.home_team_raw}</div>
             </div>
           )}
+
+          {isOverridden && (
+            <div className="rounded border border-override-red bg-override-red/10 p-3 text-sm">
+              <div className="font-semibold text-override-red">Overridden for rec makeup</div>
+              {block.override_reason && <div className="mt-1 text-xs">Reason: {block.override_reason}</div>}
+              {replacement && (
+                <div className="mt-1 text-xs opacity-80">
+                  Replaced by: {replacement.away_team_raw} @ {replacement.home_team_raw}
+                  {' · '}
+                  <Link href={`?week=${weekParam}&block=${replacement.id}`} scroll={false} className="underline">
+                    View replacement
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
           {editable ? (
             <form action={updateBlock} className="flex flex-col gap-3">
               <input type="hidden" name="id" value={block.id} />
@@ -84,6 +115,9 @@ export async function BlockDrawer({ blockId, weekParam }: { blockId: string; wee
               {block.notes && <div className="mt-2 text-sm opacity-80">{block.notes}</div>}
             </div>
           )}
+
+          {canOverride && <OverrideForm blockId={block.id} />}
+
           <div className="text-xs opacity-50">Updated {formatInTimeZone(new Date(block.updated_at ?? block.created_at), TZ, 'MMM d, h:mm a')}</div>
         </div>
       </aside>
