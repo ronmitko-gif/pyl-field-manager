@@ -232,7 +232,7 @@ export async function approveSlotRequest(formData: FormData) {
 
   const { data: requester } = await adminClient
     .from('coaches')
-    .select('id, name, email, team_id')
+    .select('id, name, email, phone, team_id')
     .eq('id', request.requester_coach_id)
     .maybeSingle();
   const { data: field } = await adminClient
@@ -246,7 +246,7 @@ export async function approveSlotRequest(formData: FormData) {
       adminClient,
       request.org_id,
       { ...request, admin_note: adminNote },
-      { id: requester.id, name: requester.name, email: requester.email, team_id: requester.team_id },
+      { id: requester.id, name: requester.name, email: requester.email, phone: requester.phone, team_id: requester.team_id },
       field.name,
       block.id
     );
@@ -255,7 +255,7 @@ export async function approveSlotRequest(formData: FormData) {
   for (const s of superseded) {
     const { data: sCoach } = await adminClient
       .from('coaches')
-      .select('id, name, email, team_id')
+      .select('id, name, email, phone, team_id')
       .eq('id', s.requester_coach_id)
       .maybeSingle();
     if (sCoach?.email && field) {
@@ -270,7 +270,7 @@ export async function approveSlotRequest(formData: FormData) {
           requester_coach_id: s.requester_coach_id,
           admin_note: 'superseded',
         },
-        { id: sCoach.id, name: sCoach.name, email: sCoach.email, team_id: sCoach.team_id },
+        { id: sCoach.id, name: sCoach.name, email: sCoach.email, phone: sCoach.phone, team_id: sCoach.team_id },
         field.name,
         true
       );
@@ -303,7 +303,7 @@ export async function denySlotRequest(formData: FormData) {
 
   const { data: requester } = await adminClient
     .from('coaches')
-    .select('id, name, email, team_id')
+    .select('id, name, email, phone, team_id')
     .eq('id', request.requester_coach_id)
     .maybeSingle();
   const { data: field } = await adminClient
@@ -317,7 +317,7 @@ export async function denySlotRequest(formData: FormData) {
       adminClient,
       request.org_id,
       { ...request, admin_note: adminNote },
-      { id: requester.id, name: requester.name, email: requester.email, team_id: requester.team_id },
+      { id: requester.id, name: requester.name, email: requester.email, phone: requester.phone, team_id: requester.team_id },
       field.name
     );
   }

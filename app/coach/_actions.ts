@@ -13,7 +13,7 @@ async function requireCoach() {
   const admin = createAdminClient();
   const { data: coach } = await admin
     .from('coaches')
-    .select('id, org_id, role, team_id, name, email')
+    .select('id, org_id, role, team_id, name, email, phone')
     .eq('auth_user_id', user.id)
     .maybeSingle();
   if (!coach) throw new Error('unauthorized');
