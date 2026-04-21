@@ -9,6 +9,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // Next.js provides 'server-only' at build time; stub it for vitest.
+      'server-only': path.resolve(__dirname, 'lib/test-stubs/server-only.ts'),
     },
   },
 });
