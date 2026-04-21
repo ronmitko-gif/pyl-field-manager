@@ -111,7 +111,6 @@ export default async function CoachPage() {
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tj-black/60">Open windows coming up</h2>
           <OpenWindowsList
             instances={windowInstances}
-            teamNameById={teamNameById}
             fieldNameById={fieldNameById}
             limit={5}
           />
