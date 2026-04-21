@@ -4,15 +4,37 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
+type VerifyOtpType =
+  | 'magiclink'
+  | 'email'
+  | 'signup'
+  | 'invite'
+  | 'recovery'
+  | 'email_change';
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
-  if (!code) {
+  const token_hash = url.searchParams.get('token_hash');
+  const type = url.searchParams.get('type') as VerifyOtpType | null;
+
+  if (!code && !token_hash) {
     return NextResponse.redirect(new URL('/login?error=missing_code', url.origin));
   }
 
   const supabase = await createClient();
-  const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+  let exchangeErr: Error | null = null;
+
+  if (token_hash && type) {
+    // Token-hash flow — self-contained, no PKCE cookie required.
+    const { error } = await supabase.auth.verifyOtp({ token_hash, type });
+    if (error) exchangeErr = new Error(error.message);
+  } else if (code) {
+    // Legacy PKCE flow — kept for email templates that haven't been updated yet.
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) exchangeErr = new Error(error.message);
+  }
+
   if (exchangeErr) {
     return NextResponse.redirect(
       new URL(`/login?error=${encodeURIComponent(exchangeErr.message)}`, url.origin)
@@ -25,10 +47,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/login?error=no_user', url.origin));
   }
 
-  // Use the admin client for the coach lookup + first-login link-up.
-  // RLS policy "coaches see self" (auth_user_id = auth.uid()) blocks the user's
-  // own row before auth_user_id is populated, which would incorrectly report
-  // the user as not registered. This step is an admin-style operation.
   const admin = createAdminClient();
   const { data: coach } = await admin
     .from('coaches')
