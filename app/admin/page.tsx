@@ -82,12 +82,12 @@ export default async function AdminPage({
           <tbody>
             {runs.map((r) => {
               const errorItems = Array.isArray(r.errors) ? r.errors : [];
-              const unmapped = errorItems
-                .map((e: { message?: string }) => {
+              const unmapped: string[] = errorItems
+                .map((e: { message?: string }): string | null => {
                   const m = /DESCRIPTION="([^"]+)"/.exec(e?.message ?? '');
                   return m ? m[1] : null;
                 })
-                .filter((s): s is string => Boolean(s));
+                .filter((s: string | null): s is string => Boolean(s));
               const otherErrors = errorItems.filter((e: { message?: string }) =>
                 !/DESCRIPTION="/.test(e?.message ?? '')
               );
