@@ -80,17 +80,47 @@ export default async function AdminPage({
             </tr>
           </thead>
           <tbody>
-            {runs.map((r) => (
-              <tr key={r.id} className="border-t border-tj-black/5">
-                <td className="p-2">{formatInTimeZone(new Date(r.started_at), TZ, 'MM-dd HH:mm')}</td>
-                <td className="p-2">{r.source}</td>
-                <td className="p-2">{r.status}</td>
-                <td className="p-2">{r.events_seen}</td>
-                <td className="p-2">{r.events_inserted}</td>
-                <td className="p-2">{r.events_updated}</td>
-                <td className="p-2">{r.errors ? JSON.stringify(r.errors).slice(0, 60) : '—'}</td>
-              </tr>
-            ))}
+            {runs.map((r) => {
+              const errorItems = Array.isArray(r.errors) ? r.errors : [];
+              const unmapped = errorItems
+                .map((e: { message?: string }) => {
+                  const m = /DESCRIPTION="([^"]+)"/.exec(e?.message ?? '');
+                  return m ? m[1] : null;
+                })
+                .filter((s): s is string => Boolean(s));
+              const otherErrors = errorItems.filter((e: { message?: string }) =>
+                !/DESCRIPTION="/.test(e?.message ?? '')
+              );
+              return (
+                <tr key={r.id} className="border-t border-tj-black/5 align-top">
+                  <td className="p-2 whitespace-nowrap">{formatInTimeZone(new Date(r.started_at), TZ, 'MM-dd HH:mm')}</td>
+                  <td className="p-2">{r.source}</td>
+                  <td className="p-2">{r.status}</td>
+                  <td className="p-2">{r.events_seen}</td>
+                  <td className="p-2">{r.events_inserted}</td>
+                  <td className="p-2">{r.events_updated}</td>
+                  <td className="p-2">
+                    {unmapped.length === 0 && otherErrors.length === 0 && '—'}
+                    {unmapped.map((desc: string) => (
+                      <div key={desc} className="mb-1 flex items-center gap-2">
+                        <code className="rounded bg-tj-cream px-1 py-0.5 text-xs">{desc}</code>
+                        <Link
+                          href={`/admin/fields?unmapped=${encodeURIComponent(desc)}`}
+                          className="rounded bg-tj-gold px-2 py-0.5 text-xs font-medium text-tj-black hover:bg-tj-gold-soft"
+                        >
+                          Fix →
+                        </Link>
+                      </div>
+                    ))}
+                    {otherErrors.length > 0 && (
+                      <div className="text-xs opacity-70">
+                        {JSON.stringify(otherErrors).slice(0, 60)}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {runs.length === 0 && (
               <tr><td colSpan={7} className="p-3 text-tj-black/50">No runs yet.</td></tr>
             )}
