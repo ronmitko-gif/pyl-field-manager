@@ -7,9 +7,10 @@ const LINKS = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/coaches', label: 'Coaches' },
   { href: '/admin/fields', label: 'Fields' },
+  { href: '/admin/requests', label: 'Requests' },
 ];
 
-export function AdminNav() {
+export function AdminNav({ pendingRequests = 0 }: { pendingRequests?: number }) {
   const pathname = usePathname();
   return (
     <nav className="flex gap-4 border-b border-tj-black/10 bg-white px-6 py-2 text-sm">
@@ -18,6 +19,7 @@ export function AdminNav() {
           l.href === '/admin'
             ? pathname === '/admin'
             : pathname.startsWith(l.href);
+        const showBadge = l.href === '/admin/requests' && pendingRequests > 0;
         return (
           <Link
             key={l.href}
@@ -29,6 +31,11 @@ export function AdminNav() {
             }
           >
             {l.label}
+            {showBadge && (
+              <span className="ml-1 rounded-full bg-tj-gold px-1.5 py-0.5 text-xs font-medium text-tj-black">
+                {pendingRequests}
+              </span>
+            )}
           </Link>
         );
       })}

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { AdminNav } from './_components/admin-nav';
 
@@ -10,6 +11,12 @@ export default async function AdminLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from('slot_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending');
 
   async function signOut() {
     'use server';
@@ -30,7 +37,7 @@ export default async function AdminLayout({
           </button>
         </form>
       </header>
-      <AdminNav />
+      <AdminNav pendingRequests={count ?? 0} />
       <main className="mx-auto max-w-6xl p-6">{children}</main>
     </div>
   );
