@@ -3,9 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { ScheduleBlock } from '@/lib/types';
 import type { OpenWindow } from '@/lib/requests/windows';
+import { expandWindows } from '@/lib/requests/availability';
 import { RequestForm } from './_components/request-form';
 import { UpcomingBlockRow } from './_components/upcoming-block-row';
 import { PendingRequestRow } from './_components/pending-request-row';
+import { OpenWindowsList } from './_components/open-windows-list';
 
 export default async function CoachPage() {
   const supabase = await createClient();
@@ -29,7 +31,7 @@ export default async function CoachPage() {
 
   const teamIdFilter = coach.team_id ?? '00000000-0000-0000-0000-000000000000';
 
-  const [blocksRes, fieldsRes, windowsRes, requestsRes] = await Promise.all([
+  const [blocksRes, fieldsRes, windowsRes, requestsRes, allBlocksRes, teamsRes] = await Promise.all([
     admin
       .from('schedule_blocks')
       .select('*')
@@ -49,6 +51,15 @@ export default async function CoachPage() {
       .eq('requester_coach_id', coach.id)
       .eq('status', 'pending')
       .order('start_at'),
+    admin
+      .from('schedule_blocks')
+      .select('id, field_id, team_id, start_at, end_at, status, source')
+      .gte('start_at', new Date().toISOString())
+      .lte('start_at', fourWeeksOut.toISOString())
+      .in('status', ['confirmed', 'tentative'])
+      .order('start_at')
+      .limit(500),
+    admin.from('teams').select('id, name'),
   ]);
 
   const blocks = (blocksRes.data ?? []) as ScheduleBlock[];
@@ -56,6 +67,10 @@ export default async function CoachPage() {
   const fieldNameById = new Map(fields.map((f) => [f.id, f.name]));
   const windows = (windowsRes.data ?? []) as OpenWindow[];
   const requests = requestsRes.data ?? [];
+  const teams = teamsRes.data ?? [];
+  const teamNameById = new Map(teams.map((t) => [t.id, t.name]));
+  const allBlocks = (allBlocksRes.data ?? []) as ScheduleBlock[];
+  const windowInstances = expandWindows(windows, allBlocks, 28);
 
   async function signOut() {
     'use server';
@@ -90,6 +105,16 @@ export default async function CoachPage() {
               ))}
             </ul>
           )}
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tj-black/60">Open windows coming up</h2>
+          <OpenWindowsList
+            instances={windowInstances}
+            teamNameById={teamNameById}
+            fieldNameById={fieldNameById}
+            limit={5}
+          />
         </section>
 
         <section>
