@@ -55,39 +55,22 @@ insert into travel_recurring_slots (team_id, field_id, day_of_week, start_time, 
       where s.team_id = t.id and s.day_of_week = v.dow and s.start_time = v.start_t
     );
 
--- Open slot blocks: next 4 weeks (28 days), at 885 Back Field, wall-clock
--- times in America/New_York converted to UTC via AT TIME ZONE.
--- Fri 20:00, Sat 11:00 / 13:00 / 15:00 / 17:00, Sun 09:00 / 11:00 / 13:00 / 15:00 / 17:00.
--- All 2-hour blocks.
-insert into schedule_blocks (org_id, field_id, start_at, end_at, source, status, notes)
-  select o.id, f.id,
-         ((d.day + w.start_time) at time zone 'America/New_York') as start_at,
-         ((d.day + w.start_time + interval '2 hours') at time zone 'America/New_York') as end_at,
-         'open_slot', 'open', 'Seeded open slot'
+-- Open windows (Session 4): 885 Back Field
+-- Fri 8-10pm, Sat 11am-7pm, Sun 9am-7pm
+insert into open_windows (org_id, field_id, day_of_week, start_time, end_time)
+  select o.id, f.id, v.dow, v.start_t, v.end_t
   from organizations o
   join fields f on f.org_id = o.id and f.name = '885 Back Field',
-    lateral (
-      select generate_series(current_date, current_date + interval '27 days', interval '1 day')::date as day
-    ) d,
-    lateral (
-      select * from (values
-        (5, time '20:00'),  -- Friday
-        (6, time '11:00'),  -- Saturday
-        (6, time '13:00'),
-        (6, time '15:00'),
-        (6, time '17:00'),
-        (0, time '09:00'),  -- Sunday (Postgres: extract(dow from day) returns 0 for Sunday)
-        (0, time '11:00'),
-        (0, time '13:00'),
-        (0, time '15:00'),
-        (0, time '17:00')
-      ) as w(dow, start_time)
-    ) w
+    (values
+      (5, '20:00'::time, '22:00'::time),
+      (6, '11:00'::time, '19:00'::time),
+      (0, '09:00'::time, '19:00'::time)
+    ) as v(dow, start_t, end_t)
   where o.slug = 'tjybb'
-    and extract(dow from d.day)::int = w.dow
     and not exists (
-      select 1 from schedule_blocks b
-      where b.field_id = f.id
-        and b.source = 'open_slot'
-        and b.start_at = ((d.day + w.start_time) at time zone 'America/New_York')
+      select 1 from open_windows w
+      where w.org_id = o.id
+        and w.field_id = f.id
+        and w.day_of_week = v.dow
+        and w.start_time = v.start_t
     );
