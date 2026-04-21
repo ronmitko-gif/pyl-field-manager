@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NormalizedEvent } from '@/lib/types';
+import { notifyTravelOverridden } from '@/lib/notifications/enqueue';
 
 type IngestCounts = {
   seen: number;
@@ -8,6 +9,7 @@ type IngestCounts = {
   updated: number;
   unchanged: number;
   deleted: number;
+  auto_overrides: number;
   errors: { uid: string; message: string }[];
 };
 
@@ -22,6 +24,7 @@ export async function ingestEvents(
     updated: 0,
     unchanged: 0,
     deleted: 0,
+    auto_overrides: 0,
     errors: [],
   };
 
@@ -138,6 +141,103 @@ export async function ingestEvents(
         counts.errors.push({ uid: '(bulk-delete)', message: delErr.message });
       } else {
         counts.deleted = staleIds.length;
+      }
+    }
+  }
+
+  // Auto-override: find future confirmed travel/manual blocks that overlap
+  // confirmed sports_connect blocks on the same field, mark them overridden
+  // and notify the team's coaches. Runs AFTER stale cleanup so we only
+  // process blocks from the current feed.
+  const nowIso = new Date().toISOString();
+  const { data: recBlocks, error: recErr } = await supabase
+    .from('schedule_blocks')
+    .select('id, field_id, start_at, end_at, home_team_raw, away_team_raw, raw_summary')
+    .eq('source', 'sports_connect')
+    .eq('org_id', orgId)
+    .eq('status', 'confirmed')
+    .gte('start_at', nowIso);
+  const { data: travelBlocks, error: travelErr } = await supabase
+    .from('schedule_blocks')
+    .select('id, field_id, team_id, start_at, end_at, org_id')
+    .in('source', ['travel_recurring', 'manual'])
+    .eq('org_id', orgId)
+    .eq('status', 'confirmed')
+    .gte('start_at', nowIso);
+  if (recErr || travelErr) {
+    counts.errors.push({
+      uid: '(auto-override-scan)',
+      message: `Load failed: ${recErr?.message ?? travelErr?.message ?? 'unknown'}`,
+    });
+    return counts;
+  }
+
+  for (const rec of recBlocks ?? []) {
+    const recStart = new Date(rec.start_at).getTime();
+    const recEnd = new Date(rec.end_at).getTime();
+    const overlaps = (travelBlocks ?? []).filter((tb) => {
+      if (tb.field_id !== rec.field_id) return false;
+      const ts = new Date(tb.start_at).getTime();
+      const te = new Date(tb.end_at).getTime();
+      return ts < recEnd && te > recStart;
+    });
+
+    for (const travel of overlaps) {
+      const matchup =
+        rec.away_team_raw && rec.home_team_raw
+          ? `${rec.away_team_raw} @ ${rec.home_team_raw}`
+          : rec.raw_summary ?? 'Rec makeup';
+      const reason = `Auto-override: rec game ${matchup}`;
+
+      const { error: updErr } = await supabase
+        .from('schedule_blocks')
+        .update({
+          status: 'overridden',
+          overridden_by_block_id: rec.id,
+          override_reason: reason,
+        })
+        .eq('id', travel.id);
+      if (updErr) {
+        counts.errors.push({
+          uid: `(auto-override:${travel.id})`,
+          message: updErr.message,
+        });
+        continue;
+      }
+      counts.auto_overrides += 1;
+
+      if (travel.team_id) {
+        const { data: coaches } = await supabase
+          .from('coaches')
+          .select('id, name, email, phone, team_id')
+          .eq('team_id', travel.team_id);
+        const { data: field } = await supabase
+          .from('fields')
+          .select('name')
+          .eq('id', travel.field_id)
+          .maybeSingle();
+        if (coaches && coaches.length > 0 && field) {
+          await notifyTravelOverridden(
+            supabase,
+            orgId,
+            {
+              id: travel.id,
+              start_at: travel.start_at,
+              end_at: travel.end_at,
+              field_id: travel.field_id,
+            },
+            rec.id,
+            reason,
+            coaches.map((c) => ({
+              id: c.id,
+              name: c.name,
+              email: c.email,
+              phone: c.phone,
+              team_id: c.team_id,
+            })),
+            field.name
+          );
+        }
       }
     }
   }
