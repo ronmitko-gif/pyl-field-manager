@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { AdminNav } from './_components/admin-nav';
 
 export default async function AdminLayout({
   children,
@@ -29,6 +30,7 @@ export default async function AdminLayout({
           </button>
         </form>
       </header>
+      <AdminNav />
       <main className="mx-auto max-w-6xl p-6">{children}</main>
     </div>
   );
