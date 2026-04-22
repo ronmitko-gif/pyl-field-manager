@@ -6,12 +6,13 @@ type Field = { id: string; name: string; short_name: string | null };
 type Team = { id: string; name: string };
 
 export function WeekGrid({
-  week, fields, blocks, teams,
+  week, fields, blocks, teams, readonly = false,
 }: {
   week: WeekBounds;
   fields: Field[];
   blocks: ScheduleBlock[];
   teams: Team[];
+  readonly?: boolean;
 }) {
   const teamNameById = new Map(teams.map((t) => [t.id, t.name]));
   const sorted = [...fields].sort((a, b) => a.name.localeCompare(b.name));
@@ -26,6 +27,7 @@ export function WeekGrid({
           weekParam={week.param}
           blocks={blocks}
           teamNameById={teamNameById}
+          readonly={readonly}
         />
       ))}
     </div>

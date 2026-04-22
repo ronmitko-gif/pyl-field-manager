@@ -19,7 +19,7 @@ function hoursOffsetInDay(blockStart: Date, dayStartUtc: Date): number {
 }
 
 export function FieldGrid({
-  fieldId, fieldName, weekStart, weekParam, blocks, teamNameById,
+  fieldId, fieldName, weekStart, weekParam, blocks, teamNameById, readonly = false,
 }: {
   fieldId: string;
   fieldName: string;
@@ -27,6 +27,7 @@ export function FieldGrid({
   weekParam: string;
   blocks: ScheduleBlock[];
   teamNameById: Map<string, string>;
+  readonly?: boolean;
 }) {
   const fieldBlocks = blocks.filter((b) => b.field_id === fieldId);
   const days = Array.from({ length: 7 }, (_, i) => dayColumn(weekStart, i));
@@ -74,7 +75,7 @@ export function FieldGrid({
                 const topPx = Math.max(0, offset * ROW_HEIGHT_PX);
                 const heightPx = Math.max(18, durHours * ROW_HEIGHT_PX);
                 return (
-                  <BlockCard key={b.id} block={b} teamName={b.team_id ? teamNameById.get(b.team_id) ?? null : null} topPx={topPx} heightPx={heightPx} weekParam={weekParam} />
+                  <BlockCard key={b.id} block={b} teamName={b.team_id ? teamNameById.get(b.team_id) ?? null : null} topPx={topPx} heightPx={heightPx} weekParam={weekParam} readonly={readonly} />
                 );
               })}
             </div>

@@ -17,13 +17,14 @@ function label(b: ScheduleBlock, teamName: string | null): string {
 }
 
 export function DayList({
-  week, fields, blocks, teams, day,
+  week, fields, blocks, teams, day, readonly = false,
 }: {
   week: WeekBounds;
   fields: Field[];
   blocks: ScheduleBlock[];
   teams: Team[];
   day: number;
+  readonly?: boolean;
 }) {
   const teamNameById = new Map(teams.map((t) => [t.id, t.name]));
   const fieldNameById = new Map(fields.map((f) => [f.id, f.short_name ?? f.name]));
@@ -57,9 +58,9 @@ export function DayList({
         <p className="rounded border border-tj-black/10 bg-white p-4 text-sm text-tj-black/50">No blocks this day.</p>
       )}
       <ul className="flex flex-col gap-2">
-        {dayBlocks.map((b) => (
-          <li key={b.id}>
-            <Link href={`?week=${week.param}&day=${day}&block=${b.id}`} scroll={false} className="flex items-center justify-between rounded border border-tj-black/10 bg-white p-3 text-sm">
+        {dayBlocks.map((b) => {
+          const content = (
+            <>
               <div>
                 <div className="font-medium">{label(b, b.team_id ? teamNameById.get(b.team_id) ?? null : null)}</div>
                 <div className="text-xs opacity-70">
@@ -67,9 +68,21 @@ export function DayList({
                 </div>
               </div>
               <span className="text-xs uppercase tracking-wide opacity-60">{b.source.replace('_', ' ')}</span>
-            </Link>
-          </li>
-        ))}
+            </>
+          );
+          const cls = 'flex items-center justify-between rounded border border-tj-black/10 bg-white p-3 text-sm';
+          return (
+            <li key={b.id}>
+              {readonly ? (
+                <div className={cls}>{content}</div>
+              ) : (
+                <Link href={`?week=${week.param}&day=${day}&block=${b.id}`} scroll={false} className={cls}>
+                  {content}
+                </Link>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

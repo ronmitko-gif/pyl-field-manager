@@ -30,29 +30,45 @@ function teamLabel(b: ScheduleBlock, teamName: string | null): string {
 }
 
 export function BlockCard({
-  block, teamName, topPx, heightPx, weekParam,
+  block, teamName, topPx, heightPx, weekParam, readonly = false,
 }: {
   block: ScheduleBlock;
   teamName: string | null;
   topPx: number;
   heightPx: number;
   weekParam: string;
+  readonly?: boolean;
 }) {
   const bg = SOURCE_BG[block.source] ?? 'bg-neutral-200 text-neutral-900';
   const status = STATUS_EXTRA[block.status] ?? '';
   const start = formatInTimeZone(new Date(block.start_at), TZ, 'h:mm a');
   const end = formatInTimeZone(new Date(block.end_at), TZ, 'h:mm a');
   const label = teamLabel(block, teamName);
+  const base = `absolute left-0.5 right-0.5 overflow-hidden rounded px-1.5 py-1 text-xs leading-tight shadow-sm ${bg} ${status}`;
+
+  const inner = (
+    <>
+      <div className="font-medium break-words">{label}</div>
+      <div className="truncate opacity-80">{start} – {end}</div>
+    </>
+  );
+
+  if (readonly) {
+    return (
+      <div className={base} style={{ top: topPx, height: heightPx }}>
+        {inner}
+      </div>
+    );
+  }
 
   return (
     <Link
       href={`?week=${weekParam}&block=${block.id}`}
       scroll={false}
-      className={`absolute left-0.5 right-0.5 overflow-hidden rounded px-1.5 py-1 text-xs leading-tight shadow-sm hover:brightness-110 ${bg} ${status}`}
+      className={`${base} hover:brightness-110`}
       style={{ top: topPx, height: heightPx }}
     >
-      <div className="font-medium break-words">{label}</div>
-      <div className="truncate opacity-80">{start} – {end}</div>
+      {inner}
     </Link>
   );
 }
