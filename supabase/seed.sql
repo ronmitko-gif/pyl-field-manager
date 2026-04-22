@@ -63,7 +63,7 @@ insert into open_windows (org_id, field_id, day_of_week, start_time, end_time)
   join fields f on f.org_id = o.id and f.name = '885 Back Field',
     (values
       (5, '20:00'::time, '22:00'::time),
-      (6, '11:00'::time, '19:00'::time),
+      (6, '09:00'::time, '19:00'::time),
       (0, '09:00'::time, '19:00'::time)
     ) as v(dow, start_t, end_t)
   where o.slug = 'tjybb'
