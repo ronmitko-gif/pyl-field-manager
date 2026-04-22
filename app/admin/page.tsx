@@ -1,13 +1,16 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { formatInTimeZone } from 'date-fns-tz';
 import { parseWeekParam } from '@/lib/calendar/week';
+import { expandWindows } from '@/lib/requests/availability';
+import type { OpenWindow } from '@/lib/requests/windows';
 import { SyncButtons } from './_components/sync-buttons';
 import { WeekNav } from './_components/week-nav';
 import { WeekGrid } from './_components/week-grid';
 import { DayList } from './_components/day-list';
 import { UpcomingList } from './_components/upcoming-list';
-import { OpenSlotsList } from './_components/open-slots-list';
+import { OpenWindowsList } from '@/app/coach/_components/open-windows-list';
 import { BlockDrawer } from './_components/block-drawer';
 import type { ScheduleBlock } from '@/lib/types';
 
@@ -23,8 +26,17 @@ export default async function AdminPage({
   const dayIndex = params.day ? Math.min(6, Math.max(0, Number(params.day))) : 0;
 
   const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const [blocksWeekRes, fieldsRes, teamsRes, upcomingRes, openSlotsRes, runsRes] = await Promise.all([
+  // We need org_id for the open_windows query — every admin's coaches row has one.
+  // Fetch a single org row (tjybb is the only one).
+  const { data: org } = await admin.from('organizations').select('id').eq('slug', 'tjybb').single();
+  const orgId = org?.id ?? '';
+
+  const fourWeeksOut = new Date();
+  fourWeeksOut.setUTCDate(fourWeeksOut.getUTCDate() + 28);
+
+  const [blocksWeekRes, fieldsRes, teamsRes, upcomingRes, windowsRes, allBlocksRes, runsRes] = await Promise.all([
     supabase.from('schedule_blocks').select('*')
       .gte('start_at', week.start.toISOString())
       .lt('start_at', week.endExclusive.toISOString())
@@ -33,22 +45,26 @@ export default async function AdminPage({
     supabase.from('teams').select('id, name'),
     supabase.from('schedule_blocks').select('*')
       .gte('start_at', new Date().toISOString())
-      .neq('source', 'open_slot')
       .order('start_at').limit(10),
-    supabase.from('schedule_blocks').select('*')
+    admin.from('open_windows').select('id, field_id, day_of_week, start_time, end_time').eq('org_id', orgId),
+    admin.from('schedule_blocks').select('id, field_id, team_id, start_at, end_at, status, source')
       .gte('start_at', new Date().toISOString())
-      .eq('source', 'open_slot').eq('status', 'open')
-      .order('start_at').limit(10),
+      .lte('start_at', fourWeeksOut.toISOString())
+      .in('status', ['confirmed', 'tentative'])
+      .order('start_at').limit(500),
     supabase.from('sync_runs').select('*')
       .order('started_at', { ascending: false }).limit(5),
   ]);
 
   const blocks = (blocksWeekRes.data ?? []) as ScheduleBlock[];
   const upcoming = (upcomingRes.data ?? []) as ScheduleBlock[];
-  const openSlots = (openSlotsRes.data ?? []) as ScheduleBlock[];
   const fields = fieldsRes.data ?? [];
   const teams = teamsRes.data ?? [];
   const runs = runsRes.data ?? [];
+  const windows = (windowsRes.data ?? []) as OpenWindow[];
+  const allBlocks = (allBlocksRes.data ?? []) as ScheduleBlock[];
+  const windowInstances = expandWindows(windows, allBlocks, 28);
+  const fieldNameById = new Map(fields.map((f) => [f.id, f.short_name ?? f.name]));
 
   return (
     <div className="flex flex-col gap-6">
@@ -62,7 +78,10 @@ export default async function AdminPage({
 
       <div className="grid gap-4 md:grid-cols-2">
         <UpcomingList blocks={upcoming} fields={fields} teams={teams} weekParam={week.param} />
-        <OpenSlotsList blocks={openSlots} fields={fields} weekParam={week.param} />
+        <section className="rounded-lg border border-tj-black/10 bg-white p-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-tj-black/60">Open windows coming up</h3>
+          <OpenWindowsList instances={windowInstances} fieldNameById={fieldNameById} limit={10} />
+        </section>
       </div>
 
       <section className="rounded-lg border border-tj-black/10 bg-white">
