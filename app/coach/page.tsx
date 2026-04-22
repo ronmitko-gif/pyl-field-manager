@@ -92,11 +92,17 @@ export default async function CoachPage() {
       </header>
 
       <main className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
+        {!coach.team_id && (
+          <div className="rounded border border-tj-gold bg-tj-gold-soft/40 p-3 text-sm">
+            <p className="font-semibold">You&apos;re not assigned to a team yet.</p>
+            <p className="mt-1 opacity-80">Contact the admin to be assigned a team before requesting slots.</p>
+          </div>
+        )}
         <section>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tj-black/60">Your upcoming blocks</h2>
           {blocks.length === 0 ? (
             <p className="rounded border border-tj-black/10 bg-white p-4 text-sm text-tj-black/50">
-              No upcoming practices. Request a slot below.
+              No upcoming practices. Check the open windows below, then request a slot.
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -127,7 +133,7 @@ export default async function CoachPage() {
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tj-black/60">Your pending requests</h2>
           {requests.length === 0 ? (
             <p className="rounded border border-tj-black/10 bg-white p-4 text-sm text-tj-black/50">
-              No pending requests.
+              No pending requests — submit one above.
             </p>
           ) : (
             <ul className="flex flex-col gap-2">

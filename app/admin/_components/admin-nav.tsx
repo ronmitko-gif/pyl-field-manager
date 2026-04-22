@@ -14,7 +14,7 @@ const LINKS = [
 export function AdminNav({ pendingRequests = 0 }: { pendingRequests?: number }) {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-4 border-b border-tj-black/10 bg-white px-6 py-2 text-sm">
+    <nav className="flex gap-4 overflow-x-auto whitespace-nowrap border-b border-tj-black/10 bg-white px-6 py-2 text-sm">
       {LINKS.map((l) => {
         const isActive =
           l.href === '/admin'
