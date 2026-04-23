@@ -52,7 +52,8 @@ export default async function RequestsPage() {
         {pending.length === 0 ? (
           <p className="p-4 text-sm text-tj-black/50">No pending requests.</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-tj-cream text-left text-xs uppercase text-tj-black/50">
               <tr>
                 <th className="p-2">Submitted</th>
@@ -108,6 +109,7 @@ export default async function RequestsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -118,7 +120,8 @@ export default async function RequestsPage() {
         {recent.length === 0 ? (
           <p className="p-4 text-sm text-tj-black/50">No recent decisions.</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-tj-cream text-left text-xs uppercase text-tj-black/50">
               <tr>
                 <th className="p-2">Resolved</th>
@@ -151,6 +154,7 @@ export default async function RequestsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

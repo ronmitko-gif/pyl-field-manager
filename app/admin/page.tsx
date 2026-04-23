@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatInTimeZone } from 'date-fns-tz';
-import { parseWeekParam } from '@/lib/calendar/week';
+import { parseWeekParam, defaultDayIndex } from '@/lib/calendar/week';
 import { expandWindows } from '@/lib/requests/availability';
 import type { OpenWindow } from '@/lib/requests/windows';
 import { SyncButtons } from './_components/sync-buttons';
@@ -23,7 +23,7 @@ export default async function AdminPage({
 }) {
   const params = await searchParams;
   const week = parseWeekParam(params.week);
-  const dayIndex = params.day ? Math.min(6, Math.max(0, Number(params.day))) : 0;
+  const dayIndex = params.day ? Math.min(6, Math.max(0, Number(params.day))) : defaultDayIndex(week);
 
   const supabase = await createClient();
   const admin = createAdminClient();

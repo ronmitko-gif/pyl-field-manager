@@ -74,3 +74,14 @@ export function weekLabel(w: WeekBounds): string {
   const endEt = addDays(startEt, 6);
   return `${format(startEt, 'MMM d')} – ${format(endEt, 'MMM d, yyyy')}`;
 }
+
+/**
+ * Default day index (0=Mon … 6=Sun) for a given week.
+ * If the week contains "now", return today's day-of-week in ET.
+ * Otherwise (past or future week), return 0 (Monday).
+ */
+export function defaultDayIndex(w: WeekBounds, now: Date = new Date()): number {
+  if (now < w.start || now >= w.endExclusive) return 0;
+  const localDow = toZonedTime(now, TZ).getDay(); // 0=Sun..6=Sat
+  return (localDow + 6) % 7; // 0=Mon..6=Sun
+}

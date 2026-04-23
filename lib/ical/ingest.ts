@@ -118,7 +118,11 @@ export async function ingestEvents(
   const feedUids = new Set(events.map((e) => e.uid));
   const cutoff = new Date();
   cutoff.setUTCHours(0, 0, 0, 0);
-  cutoff.setUTCDate(cutoff.getUTCDate() - 1); // 1-day safety window
+  // 90-day look-back: Sports Connect keeps historical games in the feed and
+  // rotates UIDs on every edit. A short cutoff lets past-game duplicates
+  // accumulate. 90 days covers a full season without risk of purging data
+  // we might still care about.
+  cutoff.setUTCDate(cutoff.getUTCDate() - 90);
 
   const { data: existingSports, error: exErr } = await supabase
     .from('schedule_blocks')

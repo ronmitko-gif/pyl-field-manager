@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { parseWeekParam } from '@/lib/calendar/week';
+import { parseWeekParam, defaultDayIndex } from '@/lib/calendar/week';
 import type { ScheduleBlock } from '@/lib/types';
 import { WeekNav } from '@/app/admin/_components/week-nav';
 import { WeekGrid } from '@/app/admin/_components/week-grid';
@@ -14,7 +14,7 @@ export default async function PublicSchedulePage({
 }) {
   const params = await searchParams;
   const week = parseWeekParam(params.week);
-  const dayIndex = params.day ? Math.min(6, Math.max(0, Number(params.day))) : 0;
+  const dayIndex = params.day ? Math.min(6, Math.max(0, Number(params.day))) : defaultDayIndex(week);
 
   const admin = createAdminClient();
 
