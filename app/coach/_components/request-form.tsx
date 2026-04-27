@@ -95,7 +95,10 @@ export function RequestForm({
     setError(null);
     setSubmitting(true);
     try {
-      await submitSlotRequest(formData);
+      const result = await submitSlotRequest(formData);
+      if (!result.ok) {
+        setError(result.error);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

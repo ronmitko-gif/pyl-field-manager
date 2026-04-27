@@ -20,9 +20,13 @@ async function requireCoach() {
   return { adminClient: admin, coach };
 }
 
-export async function submitSlotRequest(formData: FormData) {
+export type SubmitResult = { ok: true } | { ok: false; error: string };
+
+export async function submitSlotRequest(formData: FormData): Promise<SubmitResult> {
   const { adminClient, coach } = await requireCoach();
-  if (!coach.team_id) throw new Error('You must be assigned to a team.');
+  if (!coach.team_id) {
+    return { ok: false, error: 'You must be assigned to a team before requesting a slot.' };
+  }
 
   const fieldId = String(formData.get('field_id') ?? '');
   const date = String(formData.get('date') ?? '');
@@ -31,7 +35,7 @@ export async function submitSlotRequest(formData: FormData) {
   const note = String(formData.get('note') ?? '').trim() || null;
 
   if (!fieldId || !date || !startHms || !durationMin) {
-    throw new Error('Missing required fields.');
+    return { ok: false, error: 'Pick a field, date, start time, and duration.' };
   }
 
   const { fromZonedTime } = await import('date-fns-tz');
@@ -44,7 +48,9 @@ export async function submitSlotRequest(formData: FormData) {
     end_at: endAt,
     requester_coach_id: coach.id,
   });
-  if (!validation.ok) throw new Error(validation.reason);
+  if (!validation.ok) {
+    return { ok: false, error: validation.reason };
+  }
 
   const { data: reqRow, error } = await adminClient
     .from('slot_requests')
@@ -60,7 +66,9 @@ export async function submitSlotRequest(formData: FormData) {
     })
     .select('id, start_at, end_at, field_id, requester_coach_id, admin_note')
     .single();
-  if (error || !reqRow) throw new Error(`Insert failed: ${error?.message ?? 'unknown'}`);
+  if (error || !reqRow) {
+    return { ok: false, error: `Could not save the request: ${error?.message ?? 'unknown'}` };
+  }
 
   const { data: field } = await adminClient.from('fields').select('name').eq('id', fieldId).maybeSingle();
   const { data: team } = await adminClient.from('teams').select('name').eq('id', coach.team_id).maybeSingle();
@@ -77,6 +85,7 @@ export async function submitSlotRequest(formData: FormData) {
   revalidatePath('/coach');
   revalidatePath('/admin/requests');
   revalidatePath('/admin');
+  return { ok: true };
 }
 
 export async function withdrawSlotRequest(formData: FormData) {
