@@ -24,3 +24,10 @@ jobs:
           curl -fsS -X POST \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             https://fields.poweryourleague.com/api/sync/travel-slots
+      - name: Generate concession events
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://fields.poweryourleague.com/api/cron/generate-concessions
