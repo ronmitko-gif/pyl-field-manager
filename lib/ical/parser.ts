@@ -56,3 +56,16 @@ export async function fetchAndParseIcal(url: string): Promise<NormalizedEvent[]>
   const text = await res.text();
   return parseIcal(text);
 }
+
+/**
+ * Fetch one or more iCal URLs and return their combined normalized events.
+ * Deduplicates on UID — same event appearing in multiple feeds collapses to one.
+ */
+export async function fetchAndParseManyIcal(urls: string[]): Promise<NormalizedEvent[]> {
+  const results = await Promise.all(urls.map((u) => fetchAndParseIcal(u)));
+  const byUid = new Map<string, NormalizedEvent>();
+  for (const events of results) {
+    for (const ev of events) byUid.set(ev.uid, ev);
+  }
+  return [...byUid.values()];
+}

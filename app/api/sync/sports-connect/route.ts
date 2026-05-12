@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { fetchAndParseIcal } from '@/lib/ical/parser';
+import { fetchAndParseManyIcal } from '@/lib/ical/parser';
 import { ingestEvents } from '@/lib/ical/ingest';
 
 export const dynamic = 'force-dynamic';
@@ -13,10 +13,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const icalUrl = process.env.SPORTS_CONNECT_ICAL_URL;
-  if (!icalUrl) {
+  const minors = process.env.SPORTS_CONNECT_ICAL_MINORS ?? process.env.SPORTS_CONNECT_ICAL_URL;
+  const majors = process.env.SPORTS_CONNECT_ICAL_MAJORS;
+  const urls = [minors, majors].filter((u): u is string => Boolean(u));
+  if (urls.length === 0) {
     return NextResponse.json(
-      { error: 'SPORTS_CONNECT_ICAL_URL is not set' },
+      { error: 'No Sports Connect iCal URL configured (set SPORTS_CONNECT_ICAL_MINORS and/or _MAJORS)' },
       { status: 500 }
     );
   }
@@ -48,7 +50,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const events = await fetchAndParseIcal(icalUrl);
+    const events = await fetchAndParseManyIcal(urls);
     const counts = await ingestEvents(supabase, org.id, events);
     const status = counts.errors.length === 0 ? 'success' : 'partial';
     await supabase
