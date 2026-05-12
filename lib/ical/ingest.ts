@@ -63,6 +63,13 @@ export async function ingestEvents(
       continue;
     }
 
+    // Sports Connect signals cancellation by prefixing the SUMMARY with "CANCELED-".
+    // The event stays in the feed with the same data otherwise.
+    const isCancelled = /^CANCELED-/i.test(ev.summary ?? '');
+    const awayClean = isCancelled
+      ? (ev.away_team_raw ?? '').replace(/^CANCELED-/i, '').trim()
+      : ev.away_team_raw;
+
     const payload = {
       org_id: orgId,
       field_id: fieldId,
@@ -71,8 +78,8 @@ export async function ingestEvents(
       source: 'sports_connect' as const,
       source_uid: ev.uid,
       home_team_raw: ev.home_team_raw,
-      away_team_raw: ev.away_team_raw,
-      status: 'confirmed' as const,
+      away_team_raw: awayClean,
+      status: (isCancelled ? 'cancelled' : 'confirmed') as 'cancelled' | 'confirmed',
       raw_summary: ev.summary,
       raw_description: ev.description,
     };
