@@ -1,7 +1,10 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateConcessionSlots } from '@/lib/concessions/generate';
+import { sendEmail } from '@/lib/email/send';
+import { cancellationEmail } from '@/lib/email/concession-templates';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -95,7 +98,79 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, events_inserted: eventsInserted, slots_inserted: slotsInserted });
+  // ---- Auto-cancel dead game events ----
+  // Find future game-type concession events whose source games are ALL cancelled
+  // or missing. Cancel any active signups (email + soft-cancel) then delete the
+  // event (cascades to slots).
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const { data: futureGameEvents } = await admin
+    .from('concession_events')
+    .select('id, event_date, source_game_ids, location')
+    .eq('org_id', org.id)
+    .eq('event_type', 'game')
+    .gte('event_date', todayIso);
+
+  let eventsCancelled = 0;
+  let signupsCancelled = 0;
+
+  for (const ev of futureGameEvents ?? []) {
+    const uids = ev.source_game_ids ?? [];
+    if (uids.length === 0) continue;
+
+    const { data: liveGames } = await admin
+      .from('schedule_blocks')
+      .select('source_uid')
+      .eq('source', 'sports_connect')
+      .neq('status', 'cancelled')
+      .in('source_uid', uids);
+    if ((liveGames?.length ?? 0) > 0) continue; // at least one game still on
+
+    const { data: deadSlots } = await admin
+      .from('concession_slots').select('id, start_at, end_at').eq('event_id', ev.id);
+    const slotIds = (deadSlots ?? []).map((s) => s.id);
+    const slotById = new Map((deadSlots ?? []).map((s) => [s.id, s]));
+
+    const { data: activeSignups } = slotIds.length
+      ? await admin
+          .from('concession_signups')
+          .select('id, slot_id, volunteer_name, volunteer_email')
+          .is('cancelled_at', null)
+          .in('slot_id', slotIds)
+      : { data: [] };
+
+    for (const su of activeSignups ?? []) {
+      const slot = slotById.get(su.slot_id);
+      if (!slot) continue;
+      const tmpl = cancellationEmail({
+        name: su.volunteer_name,
+        start_at: slot.start_at,
+        end_at: slot.end_at,
+        location: ev.location,
+      });
+      await sendEmail({ to: su.volunteer_email, subject: tmpl.subject, html: tmpl.html });
+      await admin
+        .from('concession_signups')
+        .update({ cancelled_at: new Date().toISOString() })
+        .eq('id', su.id);
+      signupsCancelled += 1;
+    }
+
+    await admin.from('concession_events').delete().eq('id', ev.id);
+    eventsCancelled += 1;
+  }
+
+  if (eventsCancelled > 0 || eventsInserted > 0) {
+    revalidatePath('/concessions');
+    revalidatePath('/admin/concessions');
+  }
+
+  return NextResponse.json({
+    ok: true,
+    events_inserted: eventsInserted,
+    slots_inserted: slotsInserted,
+    events_cancelled: eventsCancelled,
+    signups_cancelled: signupsCancelled,
+  });
 }
 
 export async function GET(req: Request) {
