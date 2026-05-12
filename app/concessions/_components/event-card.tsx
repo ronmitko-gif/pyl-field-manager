@@ -10,6 +10,7 @@ type Event = {
   location: string;
   filled: number;
   capacity: number;
+  matchups: string[];
 };
 
 export function EventCard({ event }: { event: Event }) {
@@ -21,7 +22,7 @@ export function EventCard({ event }: { event: Event }) {
       className="block rounded-lg border border-tj-black/10 bg-white p-4 shadow-sm hover:border-tj-gold"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="text-xs uppercase tracking-wide text-tj-gold">
             {event.event_type === 'tournament' ? 'Tournament' : 'Game day'}
           </div>
@@ -29,8 +30,15 @@ export function EventCard({ event }: { event: Event }) {
             {formatInTimeZone(dateEt, TZ, 'EEEE, MMMM d, yyyy')}
           </h3>
           <p className="text-xs opacity-70">{event.location}</p>
+          {event.matchups.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-0.5 text-xs">
+              {event.matchups.map((m) => (
+                <li key={m} className="opacity-80">{m}</li>
+              ))}
+            </ul>
+          )}
         </div>
-        <div className="text-right text-sm">
+        <div className="shrink-0 text-right text-sm">
           {open > 0 ? (
             <span className="font-medium text-tj-gold">{open} open</span>
           ) : (

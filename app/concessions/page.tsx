@@ -11,11 +11,12 @@ export default async function ConcessionsPage() {
 
   const { data: events } = await admin
     .from('concession_events')
-    .select('id, event_date, event_type, location')
+    .select('id, event_date, event_type, location, source_game_ids')
     .gte('event_date', today.toISOString().slice(0, 10))
     .order('event_date');
 
   const eventIds = (events ?? []).map((e) => e.id);
+  const allGameUids = (events ?? []).flatMap((e) => e.source_game_ids ?? []);
   const { data: slots } = eventIds.length
     ? await admin
         .from('concession_slots')
@@ -30,6 +31,13 @@ export default async function ConcessionsPage() {
         .is('cancelled_at', null)
         .in('slot_id', slotIds)
     : { data: [] };
+  const { data: games } = allGameUids.length
+    ? await admin
+        .from('schedule_blocks')
+        .select('source_uid, home_team_raw, away_team_raw, start_at')
+        .eq('source', 'sports_connect')
+        .in('source_uid', allGameUids)
+    : { data: [] };
 
   const slotsByEvent = new Map<string, { capacity: number; ids: string[] }>();
   for (const s of slots ?? []) {
@@ -42,11 +50,33 @@ export default async function ConcessionsPage() {
   for (const su of signups ?? []) {
     filledBySlot.set(su.slot_id, (filledBySlot.get(su.slot_id) ?? 0) + 1);
   }
+  const gameByUid = new Map(
+    (games ?? []).map((g) => [g.source_uid, g])
+  );
+
+  function matchupsFor(uids: string[] | null): string[] {
+    const out: { time: number; label: string }[] = [];
+    const seen = new Set<string>();
+    for (const uid of uids ?? []) {
+      const g = gameByUid.get(uid);
+      if (!g || !g.home_team_raw || !g.away_team_raw) continue;
+      const label = `${g.away_team_raw} @ ${g.home_team_raw}`;
+      if (seen.has(label)) continue;
+      seen.add(label);
+      out.push({ time: new Date(g.start_at).getTime(), label });
+    }
+    return out.sort((a, b) => a.time - b.time).map((x) => x.label);
+  }
 
   const enriched = (events ?? []).map((e) => {
     const info = slotsByEvent.get(e.id);
     const filled = (info?.ids ?? []).reduce((acc, id) => acc + (filledBySlot.get(id) ?? 0), 0);
-    return { ...e, capacity: info?.capacity ?? 0, filled };
+    return {
+      ...e,
+      capacity: info?.capacity ?? 0,
+      filled,
+      matchups: matchupsFor(e.source_game_ids),
+    };
   });
 
   return (
