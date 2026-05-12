@@ -34,8 +34,9 @@ export default async function ConcessionsPage() {
   const { data: games } = allGameUids.length
     ? await admin
         .from('schedule_blocks')
-        .select('source_uid, home_team_raw, away_team_raw, start_at')
+        .select('source_uid, home_team_raw, away_team_raw, start_at, status')
         .eq('source', 'sports_connect')
+        .neq('status', 'cancelled')
         .in('source_uid', allGameUids)
     : { data: [] };
 
