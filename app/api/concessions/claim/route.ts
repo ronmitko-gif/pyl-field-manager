@@ -1,5 +1,6 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/send';
 import { confirmationEmail } from '@/lib/email/concession-templates';
@@ -78,6 +79,11 @@ export async function POST(req: Request) {
     cancelToken: row.cancel_token,
   });
   await sendEmail({ to: email, subject: tmpl.subject, html: tmpl.html });
+
+  revalidatePath('/concessions');
+  revalidatePath(`/concessions/${slot.event_id}`);
+  revalidatePath('/admin/concessions');
+  revalidatePath(`/admin/concessions/${slot.event_id}`);
 
   return NextResponse.json({ ok: true });
 }

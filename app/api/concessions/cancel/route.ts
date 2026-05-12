@@ -1,5 +1,6 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/send';
 import { cancellationEmail } from '@/lib/email/concession-templates';
@@ -49,6 +50,10 @@ export async function POST(req: Request) {
       location: event?.location ?? 'Andrew Reilly Memorial Park',
     });
     await sendEmail({ to: signup.volunteer_email, subject: tmpl.subject, html: tmpl.html });
+    revalidatePath('/concessions');
+    revalidatePath(`/concessions/${slot.event_id}`);
+    revalidatePath('/admin/concessions');
+    revalidatePath(`/admin/concessions/${slot.event_id}`);
   }
 
   return NextResponse.json({ ok: true });
