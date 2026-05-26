@@ -131,29 +131,44 @@ export async function ingestEvents(
   // we might still care about.
   cutoff.setUTCDate(cutoff.getUTCDate() - 90);
 
-  const { data: existingSports, error: exErr } = await supabase
-    .from('schedule_blocks')
-    .select('id, source_uid')
-    .eq('source', 'sports_connect')
-    .eq('org_id', orgId)
-    .gte('start_at', cutoff.toISOString());
-  if (exErr) {
-    counts.errors.push({ uid: '(stale-scan)', message: exErr.message });
-  } else {
-    const staleIds = (existingSports ?? [])
-      .filter((r) => !feedUids.has(r.source_uid as string))
-      .map((r) => r.id);
-    if (staleIds.length > 0) {
+  // Paginate the scan: Supabase caps SELECT at 1000 rows by default. With
+  // accumulated duplicates we can easily exceed that, leaving stale UIDs
+  // un-cleaned and growing the table indefinitely.
+  const PAGE = 1000;
+  const staleIds: string[] = [];
+  let scanErr: string | null = null;
+  for (let offset = 0; offset < 100_000; offset += PAGE) {
+    const { data: page, error } = await supabase
+      .from('schedule_blocks')
+      .select('id, source_uid')
+      .eq('source', 'sports_connect')
+      .eq('org_id', orgId)
+      .gte('start_at', cutoff.toISOString())
+      .order('id')
+      .range(offset, offset + PAGE - 1);
+    if (error) { scanErr = error.message; break; }
+    if (!page || page.length === 0) break;
+    for (const r of page) {
+      if (!feedUids.has(r.source_uid as string)) staleIds.push(r.id);
+    }
+    if (page.length < PAGE) break;
+  }
+  if (scanErr) {
+    counts.errors.push({ uid: '(stale-scan)', message: scanErr });
+  } else if (staleIds.length > 0) {
+    const DEL_BATCH = 500;
+    let totalDeleted = 0;
+    for (let i = 0; i < staleIds.length; i += DEL_BATCH) {
+      const batch = staleIds.slice(i, i + DEL_BATCH);
       const { error: delErr } = await supabase
-        .from('schedule_blocks')
-        .delete()
-        .in('id', staleIds);
+        .from('schedule_blocks').delete().in('id', batch);
       if (delErr) {
         counts.errors.push({ uid: '(bulk-delete)', message: delErr.message });
-      } else {
-        counts.deleted = staleIds.length;
+        break;
       }
+      totalDeleted += batch.length;
     }
+    counts.deleted = totalDeleted;
   }
 
   // Auto-override: find future confirmed travel/manual blocks that overlap
