@@ -85,6 +85,34 @@ export async function ingestEvents(
     };
 
     if (!existing) {
+      // Natural-key dedup: Sports Connect rotates UIDs on every edit, so a "new"
+      // UID often points at a game we already have. Match on
+      // (field_id, start_at, home_team_raw, away_team_raw) — if those line up,
+      // it's the same real-world game; update the existing row's UID instead
+      // of inserting a duplicate.
+      if (payload.home_team_raw && payload.away_team_raw) {
+        const { data: byKey } = await supabase
+          .from('schedule_blocks')
+          .select('id')
+          .eq('source', 'sports_connect')
+          .eq('field_id', fieldId)
+          .eq('start_at', payload.start_at)
+          .eq('home_team_raw', payload.home_team_raw)
+          .eq('away_team_raw', payload.away_team_raw)
+          .limit(1)
+          .maybeSingle();
+        if (byKey) {
+          const { error: updErr } = await supabase
+            .from('schedule_blocks').update(payload).eq('id', byKey.id);
+          if (updErr) {
+            counts.errors.push({ uid: ev.uid, message: `Re-ticket update failed: ${updErr.message}` });
+          } else {
+            counts.updated += 1;
+          }
+          continue;
+        }
+      }
+
       const { error: insErr } = await supabase
         .from('schedule_blocks')
         .insert(payload);
