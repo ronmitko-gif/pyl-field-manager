@@ -38,6 +38,7 @@ export default async function CoachPage() {
       .eq('team_id', teamIdFilter)
       .gte('start_at', new Date().toISOString())
       .lte('start_at', fourWeeksOut.toISOString())
+      .neq('status', 'overridden')
       .order('start_at')
       .limit(100),
     admin.from('fields').select('id, name').order('name'),

@@ -40,11 +40,13 @@ export default async function AdminPage({
     supabase.from('schedule_blocks').select('*')
       .gte('start_at', week.start.toISOString())
       .lt('start_at', week.endExclusive.toISOString())
+      .neq('status', 'overridden')
       .order('start_at').limit(500),
     supabase.from('fields').select('id, name, short_name'),
     supabase.from('teams').select('id, name'),
     supabase.from('schedule_blocks').select('*')
       .gte('start_at', new Date().toISOString())
+      .neq('status', 'overridden')
       .order('start_at').limit(10),
     admin.from('open_windows').select('id, field_id, day_of_week, start_time, end_time').eq('org_id', orgId),
     admin.from('schedule_blocks').select('id, field_id, team_id, start_at, end_at, status, source')

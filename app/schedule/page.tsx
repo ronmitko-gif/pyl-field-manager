@@ -25,6 +25,7 @@ export default async function PublicSchedulePage({
       .gte('start_at', week.start.toISOString())
       .lt('start_at', week.endExclusive.toISOString())
       .neq('status', 'cancelled')
+      .neq('status', 'overridden')
       .order('start_at')
       .limit(500),
     admin.from('fields').select('id, name, short_name'),
