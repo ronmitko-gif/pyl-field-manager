@@ -15,7 +15,7 @@ export default async function AdminConcessionEventPage({
   const admin = createAdminClient();
   const { data: event } = await admin
     .from('concession_events')
-    .select('id, event_date, event_type, location, source_game_ids')
+    .select('id, event_date, event_type, location, source_game_ids, name')
     .eq('id', eventId)
     .maybeSingle();
   if (!event) notFound();
@@ -51,9 +51,12 @@ export default async function AdminConcessionEventPage({
         <div>
           <Link href="/admin/concessions" className="text-xs underline">← All events</Link>
           <h2 className="mt-1 text-lg font-semibold">
-            {formatInTimeZone(dateEt, TZ, 'EEEE, MMM d, yyyy')}
+            {event.name ?? formatInTimeZone(dateEt, TZ, 'EEEE, MMM d, yyyy')}
           </h2>
-          <p className="text-xs opacity-70">{event.location} · {event.event_type}</p>
+          <p className="text-xs opacity-70">
+            {event.name && <>{formatInTimeZone(dateEt, TZ, 'EEEE, MMM d, yyyy')} · </>}
+            {event.location} · {event.event_type}
+          </p>
         </div>
         <Link
           href={`/api/concessions/export/${event.id}`}

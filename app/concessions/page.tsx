@@ -11,7 +11,7 @@ export default async function ConcessionsPage() {
 
   const { data: events } = await admin
     .from('concession_events')
-    .select('id, event_date, event_type, location, source_game_ids')
+    .select('id, event_date, event_type, location, source_game_ids, name')
     .gte('event_date', today.toISOString().slice(0, 10))
     .order('event_date');
 

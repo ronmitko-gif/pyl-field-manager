@@ -16,7 +16,7 @@ export default async function ConcessionEventPage({
   const admin = createAdminClient();
   const { data: event } = await admin
     .from('concession_events')
-    .select('id, event_date, event_type, location, source_game_ids')
+    .select('id, event_date, event_type, location, source_game_ids, name')
     .eq('id', eventId)
     .maybeSingle();
   if (!event) notFound();
@@ -67,8 +67,11 @@ export default async function ConcessionEventPage({
       <header className="border-b border-tj-black/10 bg-tj-black px-6 py-3 text-tj-cream">
         <Link href="/concessions" className="text-xs text-tj-gold-soft hover:text-tj-gold">← All events</Link>
         <h1 className="mt-1 text-lg font-semibold">
-          {formatInTimeZone(dateEt, TZ, 'EEEE, MMMM d, yyyy')}
+          {event.name ?? formatInTimeZone(dateEt, TZ, 'EEEE, MMMM d, yyyy')}
         </h1>
+        {event.name && (
+          <p className="text-xs text-tj-gold-soft">{formatInTimeZone(dateEt, TZ, 'EEEE, MMMM d, yyyy')}</p>
+        )}
         <p className="text-xs opacity-70">{event.location}</p>
         {matchups.length > 0 && (
           <ul className="mt-2 flex flex-col gap-0.5 text-xs text-tj-gold-soft">

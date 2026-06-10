@@ -13,7 +13,7 @@ export default async function AdminConcessionsPage() {
 
   const { data: events } = await admin
     .from('concession_events')
-    .select('id, event_date, event_type, location')
+    .select('id, event_date, event_type, location, name')
     .gte('event_date', today.toISOString().slice(0, 10))
     .order('event_date');
 
@@ -72,7 +72,12 @@ export default async function AdminConcessionsPage() {
                 const dateEt = new Date(`${e.event_date}T12:00:00Z`);
                 return (
                   <tr key={e.id} className="border-t border-tj-black/5">
-                    <td className="p-2 whitespace-nowrap">{formatInTimeZone(dateEt, TZ, 'EEE MMM d, yyyy')}</td>
+                    <td className="p-2 whitespace-nowrap">
+                      {e.name && <div className="font-medium">{e.name}</div>}
+                      <div className={e.name ? 'text-xs text-tj-black/50' : undefined}>
+                        {formatInTimeZone(dateEt, TZ, 'EEE MMM d, yyyy')}
+                      </div>
+                    </td>
                     <td className="p-2 capitalize">{e.event_type}</td>
                     <td className="p-2">{filled}/{cap}</td>
                     <td className="p-2 text-right">
