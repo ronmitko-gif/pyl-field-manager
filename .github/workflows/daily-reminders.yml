@@ -1,8 +1,10 @@
 name: Daily concession reminders
 
 on:
-  schedule:
-    - cron: "0 12 * * *"
+  # Daily schedule paused 2026-07-22 — was emailing on every failed run while
+  # the deployment was down. Re-enable by uncommenting the schedule below.
+  # schedule:
+  #   - cron: "0 12 * * *"
   workflow_dispatch:
 
 jobs:
