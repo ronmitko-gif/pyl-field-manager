@@ -1,8 +1,10 @@
 name: Hourly sync (rec + travel)
 
 on:
-  schedule:
-    - cron: "15 * * * *"
+  # Hourly schedule paused 2026-07-22 — was emailing on every failed run while
+  # the deployment was down. Re-enable by uncommenting the schedule below.
+  # schedule:
+  #   - cron: "15 * * * *"
   workflow_dispatch:
 
 jobs:
